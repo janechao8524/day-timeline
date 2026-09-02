@@ -535,6 +535,58 @@
     z-index: 25;
   }
 
+  /* 短時段卡片 (如 15 分鐘交通時間) 自適應排版：單行橫向排列、保證文字清晰可見 */
+  .event-card.short-event {
+    padding: 2px 8px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    line-height: 1.2 !important;
+  }
+  .event-card.short-event .event-icon-span {
+    font-size: 13px !important;
+  }
+
+  /* 頂部高度自由拉高/縮小微調控制器 */
+  .scale-ctrl-box {
+    display: inline-flex;
+    align-items: center;
+    background: #F1F3F4;
+    border: 1px solid var(--line-border);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    gap: 5px;
+    height: 30px;
+    user-select: none;
+  }
+  .btn-scale-step {
+    border: 1px solid #DADCE0;
+    background: #FFFFFF;
+    color: var(--text-main);
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-scale-step:hover {
+    background: #E8EAED;
+    border-color: #B0BEC5;
+  }
+  .scale-value-text {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--primary);
+    min-width: 52px;
+    text-align: center;
+  }
+
   .event-card-header {
     display: flex;
     align-items: center;
@@ -822,7 +874,11 @@
     </div>
 
     <div class="nav-right">
-      <button class="btn btn-sm" id="btnToggleDensity" title="切換放大或緊湊高度">🔍 放大高度</button>
+      <div class="scale-ctrl-box" title="自由拉高或縮小時間軸格子，看得更清楚">
+        <button class="btn-scale-step" id="btnScaleDown" title="縮小格子 (更緊湊)">➖</button>
+        <span class="scale-value-text" id="scaleValueText">16px</span>
+        <button class="btn-scale-step" id="btnScaleUp" title="拉高格子 (15分鐘看得更清楚)">➕</button>
+      </div>
       <button class="btn btn-sm" id="btnShowAnalytics" title="查看時間花費分析統計">📊 時間分析</button>
       <button class="btn btn-sm" id="btnToggleIndicator" title="開關現在時間紅線">🔴 時間線</button>
       <button class="btn btn-sm" id="btnManageFold" title="設定時段收合">⚙️ 時段摺疊</button>
@@ -1657,49 +1713,60 @@
     events.forEach(function (ev) {
       var topY = calculateEventY(ev.startTime, slotToYMap);
       var bottomY = calculateEventY(ev.endTime, slotToYMap);
-      var height = Math.max(bottomY - topY, 26); // 最小高度 26px 保持可讀
+      var rawHeight = bottomY - topY;
+      var isShort = rawHeight < 38; // 小於 38px (如 15-30 分鐘) 自動進入短事件自適應模式
+      var height = Math.max(rawHeight, 24); // 確保至少有 24px 高度，絕不壓扁
 
       var cat = guessCategory(ev);
       var borderColor = ev.border || cat.border || cat.color;
 
       var card = document.createElement("div");
-      card.className = "event-card";
+      card.className = "event-card" + (isShort ? " short-event" : "");
       card.style.top = topY + "px";
       card.style.height = height + "px";
       card.style.borderLeftColor = borderColor;
+      card.title = ev.title + " (" + ev.startTime + " - " + ev.endTime + ")" + (ev.note ? "\n" + ev.note : "");
 
-      // 頂部時間與分類徽章列
-      var header = document.createElement("div");
-      header.className = "event-card-header";
+      if (isShort) {
+        // 短時間自適應模式：單行橫排 [圖標] [標題] [時間]，文字清晰飽滿
+        card.innerHTML =
+          '<span class="event-icon-span" style="font-size: 13px; line-height: 1;">' + cat.icon + '</span>' +
+          '<span style="font-weight: 700; font-size: 11.5px; color: #202124; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">' + ev.title + '</span>' +
+          '<span class="event-time-badge" style="font-size: 10px; color: var(--text-muted); white-space: nowrap;">' + ev.startTime + '</span>';
+      } else {
+        // 標準卡片排版
+        var header = document.createElement("div");
+        header.className = "event-card-header";
 
-      var timeBadge = document.createElement("span");
-      timeBadge.className = "event-time-badge";
-      timeBadge.textContent = ev.startTime + " - " + ev.endTime;
+        var timeBadge = document.createElement("span");
+        timeBadge.className = "event-time-badge";
+        timeBadge.textContent = ev.startTime + " - " + ev.endTime;
 
-      var catBadge = document.createElement("span");
-      catBadge.className = "event-cat-badge";
-      catBadge.style.backgroundColor = cat.color + "22"; // 15% 透明度極淡底色
-      catBadge.style.color = cat.border;
-      catBadge.innerHTML = cat.icon + " " + cat.name;
+        var catBadge = document.createElement("span");
+        catBadge.className = "event-cat-badge";
+        catBadge.style.backgroundColor = cat.color + "22"; // 15% 透明度極淡底色
+        catBadge.style.color = cat.border;
+        catBadge.innerHTML = cat.icon + " " + cat.name;
 
-      header.appendChild(timeBadge);
-      if (height >= 45) {
-        header.appendChild(catBadge);
-      }
+        header.appendChild(timeBadge);
+        if (height >= 46) {
+          header.appendChild(catBadge);
+        }
 
-      // 標題 (前綴分類圖標)
-      var title = document.createElement("div");
-      title.className = "event-title";
-      title.innerHTML = '<span class="event-icon-span">' + cat.icon + '</span><span>' + ev.title + '</span>';
+        // 標題 (前綴分類圖標)
+        var title = document.createElement("div");
+        title.className = "event-title";
+        title.innerHTML = '<span class="event-icon-span">' + cat.icon + '</span><span>' + ev.title + '</span>';
 
-      card.appendChild(header);
-      card.appendChild(title);
+        card.appendChild(header);
+        card.appendChild(title);
 
-      if (ev.note && height >= 60) {
-        var note = document.createElement("div");
-        note.className = "event-note";
-        note.textContent = ev.note;
-        card.appendChild(note);
+        if (ev.note && height >= 62) {
+          var note = document.createElement("div");
+          note.className = "event-note";
+          note.textContent = ev.note;
+          card.appendChild(note);
+        }
       }
 
       card.addEventListener("click", function (e) {
@@ -2307,17 +2374,40 @@
     this.value = "";
   });
 
-  // 預設即為精緻緊湊高度 (1小時 48px)，點擊可放大為寬鬆模式 (1小時 80px)
-  var isExpandedMode = false;
-  document.getElementById("btnToggleDensity").addEventListener("click", function () {
-    isExpandedMode = !isExpandedMode;
-    SLOT_HEIGHT = isExpandedMode ? 20 : 12;
-    document.documentElement.style.setProperty('--slot-height', (isExpandedMode ? 20 : 12) + 'px');
-    document.documentElement.style.setProperty('--hour-height', (isExpandedMode ? 80 : 48) + 'px');
-    this.textContent = isExpandedMode ? "📐 緊湊高度" : "🔍 放大高度";
-    this.classList.toggle("active", isExpandedMode);
-    renderTimeline();
-    showToast(isExpandedMode ? "🔍 已切換為寬鬆放大模式 (1小時 80px)" : "📐 已切換為精緻緊湊模式 (1小時 48px)");
+  // 自由高度微調控制器 (10px ~ 32px，預設 16px：既緊湊又能把15分鐘看得一清二楚)
+  var savedScale = parseInt(localStorage.getItem("day-timeline-slot-height"), 10);
+  if (savedScale && savedScale >= 10 && savedScale <= 32) {
+    SLOT_HEIGHT = savedScale;
+  } else {
+    SLOT_HEIGHT = 16;
+  }
+
+  function updateScaleDisplay() {
+    var textEl = document.getElementById("scaleValueText");
+    if (textEl) textEl.textContent = SLOT_HEIGHT + "px";
+    document.documentElement.style.setProperty('--slot-height', SLOT_HEIGHT + 'px');
+    document.documentElement.style.setProperty('--hour-height', (SLOT_HEIGHT * 4) + 'px');
+    try { localStorage.setItem("day-timeline-slot-height", SLOT_HEIGHT); } catch (e) {}
+  }
+
+  updateScaleDisplay();
+
+  document.getElementById("btnScaleUp").addEventListener("click", function () {
+    if (SLOT_HEIGHT < 32) {
+      SLOT_HEIGHT += 2;
+      updateScaleDisplay();
+      renderTimeline();
+      showToast("➕ 格子拉高為 " + SLOT_HEIGHT + "px (15分鐘看得更清楚！)");
+    }
+  });
+
+  document.getElementById("btnScaleDown").addEventListener("click", function () {
+    if (SLOT_HEIGHT > 10) {
+      SLOT_HEIGHT -= 2;
+      updateScaleDisplay();
+      renderTimeline();
+      showToast("➖ 格子縮小為 " + SLOT_HEIGHT + "px (更緊湊)");
+    }
   });
 
   document.getElementById("btnToggleIndicator").addEventListener("click", function () {
