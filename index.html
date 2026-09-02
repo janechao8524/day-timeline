@@ -1,0 +1,2457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>一日時間軸 APP - 預計 vs 實際雙欄行事曆</title>
+<style>
+  :root {
+    --primary: #1A73E8;
+    --primary-hover: #1557B0;
+    --primary-soft: #E8F0FE;
+    --actual-color: #0F9D58;
+    --actual-soft: #E6F4EA;
+    --bg-page: #F8F9FA;
+    --bg-surface: #FFFFFF;
+    --text-main: #202124;
+    --text-muted: #5F6368;
+    --text-light: #80868B;
+    --line-border: #DADCE0;
+    --line-light: #F1F3F4;
+    --line-hour: #E0E0E0;
+    --line-quarter: #F8F9FA;
+    --accent-red: #EA4335;
+    --fold-bg: #F1F3F4;
+    --fold-hover: #E8EAED;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 2px rgba(60,64,67,0.12), 0 1px 3px rgba(60,64,67,0.08);
+    --shadow-md: 0 4px 8px rgba(60,64,67,0.15), 0 1px 3px rgba(60,64,67,0.1);
+    --shadow-lg: 0 8px 24px rgba(60,64,67,0.2);
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Hiragino Sans", "PingFang TC", "Microsoft JhengHei", Roboto, sans-serif;
+    --slot-height: 20px; /* 15分鐘高度 = 20px，1小時 = 80px */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-family);
+    background: var(--bg-page);
+    color: var(--text-main);
+    line-height: 1.5;
+    font-size: 14px;
+    min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* 頂部導航列 */
+  header.app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--line-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: 10px 16px;
+  }
+
+  .nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--text-main);
+  }
+
+  .app-logo span.logo-icon {
+    font-size: 20px;
+  }
+
+  .date-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line-border);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #F1F3F4; }
+  .btn:active { background: #E8EAED; }
+
+  .btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #FFF;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .btn-sm {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12.5px;
+  }
+
+  .btn-round {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .current-date-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+    transition: background 0.15s;
+    position: relative;
+  }
+  .current-date-badge:hover { background: var(--fold-hover); }
+
+  .date-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+  .week-chip {
+    font-size: 12px;
+    background: var(--line-light);
+    color: var(--text-muted);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .weekday-chip {
+    font-size: 13px;
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .date-picker-hidden {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4285F4, #34A853);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+
+  /* 雲端同步與版本記錄橫條 */
+  .sync-strip {
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--line-border);
+    padding: 8px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    font-size: 12.5px;
+  }
+
+  .sync-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+  .dot-status {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #9AA0A6;
+  }
+  .dot-status.online { background: #34A853; box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.25); }
+  .dot-status.syncing { background: #FBBC05; animation: pulse 1s infinite alternate; }
+  @keyframes pulse { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+  .version-meta {
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #F1F3F4;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .sync-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .gas-input-wrap {
+    display: flex;
+    align-items: center;
+  }
+
+  .gas-input {
+    height: 30px;
+    width: 220px;
+    padding: 0 8px;
+    border: 1px solid var(--line-border);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    font-size: 12px;
+    outline: none;
+  }
+  .gas-input:focus { border-color: var(--primary); }
+
+  .gas-connect-btn {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    border-left: none;
+  }
+
+  /* 提示通知條 */
+  .toast-bar {
+    display: none;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    background: #E8F0FE;
+    color: var(--primary);
+    border-bottom: 1px solid #D2E3FC;
+    transition: all 0.3s;
+  }
+
+  /* 主要內容區 */
+  .timeline-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 12px 16px 40px;
+  }
+
+  /* 雙欄表頭 */
+  .timeline-header-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr 1fr;
+    gap: 12px;
+    position: sticky;
+    top: 57px;
+    z-index: 90;
+    background: var(--bg-page);
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--line-border);
+  }
+
+  .col-header-time {
+    display: flex;
+    align-items: flex-end;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-light);
+    padding-left: 4px;
+  }
+
+  .col-header-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--line-border);
+  }
+
+  .col-header-card.plan {
+    border-top: 4px solid var(--primary);
+  }
+  .col-header-card.actual {
+    border-top: 4px solid var(--actual-color);
+  }
+
+  .col-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .col-title.plan-text { color: var(--primary); }
+  .col-title.actual-text { color: var(--actual-color); }
+
+  .col-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 時間軸網格區 */
+  .timeline-body-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr 1fr;
+    gap: 12px;
+    margin-top: 6px;
+    position: relative;
+  }
+
+  /* 左側時間標尺 */
+  .time-axis-col {
+    user-select: none;
+  }
+
+  .time-hour-label {
+    height: 80px; /* 對應 4 個 15 分鐘 = 80px */
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-right: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transform: translateY(-8px);
+  }
+
+  /* 欄位畫布 (Plan & Actual) */
+  .timeline-col {
+    position: relative;
+    background: var(--bg-surface);
+    border: 1px solid var(--line-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  /* 刻度背景格線 */
+  .time-grid-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .grid-hour {
+    height: 80px;
+    border-bottom: 1px solid var(--line-hour);
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .grid-quarter {
+    height: 20px;
+    border-bottom: 1px dashed var(--line-quarter);
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .grid-quarter:hover {
+    background: rgba(26, 115, 232, 0.04);
+  }
+  .timeline-col.actual .grid-quarter:hover {
+    background: rgba(15, 157, 88, 0.04);
+  }
+
+  /* 摺疊區間橫條樣式 */
+  .fold-strip {
+    background: var(--fold-bg);
+    border-top: 1px solid var(--line-border);
+    border-bottom: 1px solid var(--line-border);
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+    position: relative;
+    z-index: 10;
+  }
+  .fold-strip:hover {
+    background: var(--fold-hover);
+    color: var(--text-main);
+  }
+
+  /* 展開狀態下的收合提醒標籤 */
+  .unfolded-banner {
+    position: absolute;
+    right: 8px;
+    top: 4px;
+    background: #E8EAED;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 15;
+    transition: all 0.15s;
+  }
+  .unfolded-banner:hover {
+    background: #DADCE0;
+    color: var(--text-main);
+  }
+
+  .fold-strip-axis {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 600;
+  }
+
+  /* 現在時間指示紅線 (修正疊加問題，精緻 2px 標線) */
+  .now-time-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #EA4335;
+    z-index: 35;
+    pointer-events: none;
+  }
+  .now-time-indicator::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #EA4335;
+    box-shadow: 0 0 0 2px rgba(234,67,53,0.3);
+  }
+  .now-time-tag {
+    position: absolute;
+    right: 6px;
+    top: -9px;
+    background: #EA4335;
+    color: #FFF;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 5px;
+    border-radius: 3px;
+    line-height: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  /* 事件卡片 (Event Card) - 無厚重底色、清新乾淨白底、左側分類條 */
+  .event-card {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    border-radius: 6px;
+    padding: 6px 9px;
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 1px 2px rgba(60,64,67,0.08), 0 1px 3px rgba(60,64,67,0.04);
+    cursor: pointer;
+    z-index: 20;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  }
+  .event-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(60,64,67,0.15);
+    border-color: #B0BEC5;
+    z-index: 25;
+  }
+
+  .event-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .event-time-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .event-cat-badge {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .event-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-top: 3px;
+    color: #202124;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .event-icon-span {
+    font-size: 15px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .event-note {
+    font-size: 11.5px;
+    margin-top: 4px;
+    color: #5F6368;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* 分類選擇器按鈕群 (分類標籤) */
+  .category-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .cat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid #DADCE0;
+    background: #FFF;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .cat-btn:hover { background: #F1F3F4; }
+  .cat-btn.active {
+    border-color: #1A73E8;
+    background: #E8F0FE;
+    color: #1A73E8;
+    font-weight: 700;
+  }
+
+  /* 時間分析統計視窗樣式 */
+  .analytics-card {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .stat-progress-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #E0E0E0;
+    overflow: hidden;
+    display: flex;
+  }
+  .stat-progress-fill {
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Modal 對話框 */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(32, 33, 36, 0.6);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    padding: 16px;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-box {
+    background: var(--bg-surface);
+    width: 100%;
+    max-width: 480px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: modalIn 0.2s ease-out;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title {
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--line-border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* 顏色色票選擇器 */
+  .color-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .color-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .color-dot:hover { transform: scale(1.15); }
+  .color-dot.active {
+    border-color: #202124;
+    transform: scale(1.15);
+  }
+
+  .modal-footer {
+    padding: 12px 20px;
+    background: var(--bg-page);
+    border-top: 1px solid var(--line-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* 響應式佈局適應手機螢幕與 Notion 小視窗 */
+  @media (max-width: 768px) {
+    header.app-bar { padding: 8px 10px; }
+    .title-row { gap: 6px; }
+    .date-title { font-size: 16px; }
+    .sync-strip { padding: 8px 10px; flex-direction: column; align-items: stretch; }
+    .sync-actions { width: 100%; justify-content: flex-start; }
+    .gas-input-wrap { width: 100%; }
+    .gas-input { flex: 1; }
+    .timeline-container { padding: 8px 4px 30px; }
+    
+    .timeline-header-grid, .timeline-body-grid {
+      grid-template-columns: 46px 1fr 1fr;
+      gap: 6px;
+    }
+    .col-header-card { padding: 6px 8px; }
+    .col-title { font-size: 12.5px; }
+    .col-tools .btn { padding: 0 6px; height: 26px; font-size: 11px; }
+    .time-hour-label { font-size: 10.5px; padding-right: 4px; }
+    .event-card { left: 3px; right: 3px; padding: 4px 6px; }
+    .event-title { font-size: 12px; }
+    .event-time-badge { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 頂部導航列 -->
+<header class="app-bar">
+  <div class="nav-row">
+    <div class="nav-left">
+      <div class="app-logo">
+        <span class="logo-icon">⏳</span>
+        <span>一日時間軸</span>
+      </div>
+      <div class="date-ctrls">
+        <button class="btn btn-sm" id="btnToday">今天</button>
+        <button class="btn btn-round" id="btnPrevDay" title="前一天 (快捷鍵: ←)">‹</button>
+        <button class="btn btn-round" id="btnNextDay" title="後一天 (快捷鍵: →)">›</button>
+      </div>
+      <div class="current-date-badge" id="dateBadge" title="點擊選擇日期">
+        <span class="date-title" id="dispDateTitle">2026年9月2日</span>
+        <span class="week-chip" id="dispWeekChip">第36週</span>
+        <span class="weekday-chip" id="dispWeekday">週三</span>
+        <input type="date" class="date-picker-hidden" id="dateInput" />
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <button class="btn btn-sm" id="btnShowAnalytics" title="查看時間花費分析統計">📊 時間分析</button>
+      <button class="btn btn-sm" id="btnToggleIndicator" title="開關現在時間紅線">🔴 時間線</button>
+      <button class="btn btn-sm" id="btnManageFold" title="設定時段收合">⚙️ 時段摺疊</button>
+      <div class="user-profile">
+        <div class="avatar" title="Jane Chao">JC</div>
+        <span class="user-name">Jane Chao</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- 雲端同步與版本記錄橫條 -->
+<div class="sync-strip">
+  <div class="sync-info">
+    <div class="sync-status">
+      <span class="dot-status" id="syncDot"></span>
+      <span id="syncText">本地儲存</span>
+    </div>
+    <div class="version-meta" id="versionMeta" title="最後修改時間與版本資訊">
+      🕒 最新修改：尚未變更 · 電腦版
+    </div>
+  </div>
+
+  <div class="sync-actions">
+    <div class="gas-input-wrap">
+      <input type="text" class="gas-input" id="gasUrlInput" placeholder="貼上 Google Apps Script 網址 (/exec)" />
+      <button class="btn btn-sm gas-connect-btn" id="btnConnectSync">☁️ 連線同步</button>
+    </div>
+    <button class="btn btn-sm" id="btnPushNow" title="立即儲存至 Google 試算表">⬆️ 手動上傳</button>
+    <button class="btn btn-sm" id="btnCopyNotionUrl" title="複製帶有同步參數的嵌入網址">🔗 複製 Notion 網址</button>
+    <button class="btn btn-sm" id="btnExportJson" title="將目前所有行程下載為 JSON 檔案存到電腦">📥 匯出存檔</button>
+    <button class="btn btn-sm" id="btnImportJson" title="從電腦載入先前的 JSON 備份檔">📤 匯入存檔</button>
+    <input type="file" id="importFileInput" accept=".json" style="display: none;" />
+  </div>
+</div>
+
+<!-- 提示訊息條 -->
+<div class="toast-bar" id="toastBar"></div>
+
+<!-- 時間軸主體 -->
+<main class="timeline-container">
+  <!-- 表頭：預計 vs 實際 -->
+  <div class="timeline-header-grid">
+    <div class="col-header-time">GMT+08</div>
+    <div class="col-header-card plan">
+      <div class="col-title plan-text">
+        <span>📋</span>
+        <span>規劃預計 (PLAN)</span>
+      </div>
+      <div class="col-tools">
+        <button class="btn btn-sm btn-primary" id="btnAddPlan">+ 新增預計</button>
+      </div>
+    </div>
+    <div class="col-header-card actual">
+      <div class="col-title actual-text">
+        <span>🎯</span>
+        <span>實際執行 (ACTUAL)</span>
+      </div>
+      <div class="col-tools">
+        <button class="btn btn-sm" id="btnCopyPlanToActual" title="將今日預計行程複製到實際欄">📋 複製預計至實際</button>
+        <button class="btn btn-sm" style="background: var(--actual-color); color: #fff; border-color: var(--actual-color);" id="btnAddActual">+ 新增實際</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 時間軸內容 -->
+  <div class="timeline-body-grid" id="timelineBody">
+    <!-- 左側刻度欄 -->
+    <div class="time-axis-col" id="timeAxisCol"></div>
+
+    <!-- 預計欄 -->
+    <div class="timeline-col plan" id="planCol">
+      <div class="time-grid-canvas" id="planCanvas"></div>
+      <div class="events-layer" id="planEventsLayer"></div>
+    </div>
+
+    <!-- 實際欄 -->
+    <div class="timeline-col actual" id="actualCol">
+      <div class="time-grid-canvas" id="actualCanvas"></div>
+      <div class="events-layer" id="actualEventsLayer"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 事件新增/編輯對話框 -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalHeaderTitle">新增行程</h3>
+      <button class="modal-close" id="btnModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">行程類型</label>
+        <div style="display: flex; gap: 10px;">
+          <label style="display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--primary); cursor: pointer;">
+            <input type="radio" name="modalColType" value="plan" checked /> 📋 規劃預計 (Plan)
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--actual-color); cursor: pointer;">
+            <input type="radio" name="modalColType" value="actual" /> 🎯 實際執行 (Actual)
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="eventTitleInput">行程名稱 / 事項</label>
+        <input type="text" class="form-input" id="eventTitleInput" placeholder="例如：新美術館_志工培訓、天文簡報備課..." />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="startTimeSelect">開始時間 (15分為單位)</label>
+          <select class="form-select" id="startTimeSelect"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="endTimeSelect">結束時間 (15分為單位)</label>
+          <select class="form-select" id="endTimeSelect"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">活動分類 (圖標與統計類別)</label>
+        <div class="category-selector" id="categorySelector"></div>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <label class="form-label" style="margin: 0;">代表標籤色彩</label>
+          <span id="selectedCatName" style="font-size: 11.5px; font-weight: 700; color: var(--primary);"></span>
+        </div>
+        <div class="color-palette" id="colorPalette" style="margin-top: 4px;"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="eventNoteInput">執行心得 / 備註筆記 (選填)</label>
+        <textarea class="form-textarea" id="eventNoteInput" rows="3" placeholder="例如：討論重點、完成了第3章、提前10分鐘抵達..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" id="btnDeleteEvent" style="color: var(--accent-red); border-color: #F8D7DA; display: none;">🗑️ 刪除行程</button>
+      <div style="display: flex; gap: 8px; margin-left: auto;">
+        <button class="btn btn-sm" id="btnCancelModal">取消</button>
+        <button class="btn btn-sm btn-primary" id="btnSaveEvent">儲存行程</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 時間花費統計分析對話框 (Time Analytics Modal) -->
+<div class="modal-overlay" id="analyticsModal">
+  <div class="modal-box" style="max-width: 540px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📊 時間花費統計分析</h3>
+      <button class="modal-close" id="btnAnalyticsClose">&times;</button>
+    </div>
+    <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; align-items: center; justify-content: space-between; background: #E8F0FE; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid #D2E3FC;">
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--primary);" id="analyticsDateTitle">2026年9月2日 時間分析</div>
+          <div style="font-size: 11px; color: #5F6368;">掌握今日時間花去哪裡，對比預計與實際執行落差</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 11px; color: #5F6368;">實際已記錄總時長</div>
+          <div style="font-size: 18px; font-weight: 800; color: var(--actual-color);" id="totalActualHours">0.0 小時</div>
+        </div>
+      </div>
+
+      <!-- 分類時間長條分佈總覽條 -->
+      <div class="analytics-card">
+        <div style="font-size: 12.5px; font-weight: 700; color: #202124;">🎯 實際執行時間比例分佈</div>
+        <div class="stat-progress-bar" id="analyticsSummaryBar"></div>
+        <div id="analyticsCategoryList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;"></div>
+      </div>
+
+      <!-- 預計 vs 實際 對比表 -->
+      <div class="analytics-card" style="margin-top: 4px;">
+        <div style="font-size: 12.5px; font-weight: 700; color: #202124;">📋 預計規劃 vs. 🎯 實際執行 對照</div>
+        <div id="analyticsCompareList" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-primary" id="btnAnalyticsDone" style="margin-left: auto;">關閉分析</button>
+    </div>
+  </div>
+</div>
+
+<!-- 時段收合設定對話框 -->
+<div class="modal-overlay" id="foldModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title">⚙️ 時段收合與顯示管理</h3>
+      <button class="modal-close" id="btnFoldClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 作用範圍選擇器 -->
+      <div style="background: #E8F0FE; border: 1px solid #D2E3FC; padding: 10px 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--primary);">🎯 設定套用範圍：</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px;">
+          <label style="display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 13px; cursor: pointer;">
+            <input type="radio" name="foldScope" value="day" checked id="scopeDayRadio" />
+            <span>僅套用今日 (<span id="foldScopeDateText">2026/09/02</span>)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 13px; cursor: pointer;">
+            <input type="radio" name="foldScope" value="global" id="scopeGlobalRadio" />
+            <span>設為每日全域預設</span>
+          </label>
+        </div>
+        <div id="dayCustomStatusBadge" style="font-size: 11.5px; color: #1967D2; margin-top: 2px;">
+          💡 今日使用專屬自訂時段
+        </div>
+      </div>
+
+      <div id="foldRangesList" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"></div>
+
+      <div style="border-top: 1px dashed var(--line-border); padding-top: 12px; margin-top: 6px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">＋ 新增自訂摺疊時段區間 (如睡眠、午休)</span>
+        <div class="form-row" style="margin-top: 6px;">
+          <select class="form-select" id="newFoldStart"></select>
+          <select class="form-select" id="newFoldEnd"></select>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" class="form-input" id="newFoldLabel" placeholder="時段標籤 (例如: 午休時段、補眠)" />
+          <button class="btn btn-sm" id="btnAddFoldRange">加入區間</button>
+        </div>
+      </div>
+
+      <!-- 快速情境範本 -->
+      <div style="border-top: 1px dashed var(--line-border); padding-top: 10px; margin-top: 8px;">
+        <span style="font-size: 11.5px; font-weight: 700; color: var(--text-light);">⚡ 快速加入常見範本：</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+          <button type="button" class="btn btn-sm" id="btnQuickNoonNap" style="font-size: 11.5px; height: 26px; padding: 0 8px;">☕ 加入午休 (12:30-13:30)</button>
+          <button type="button" class="btn btn-sm" id="btnQuickLateSleep" style="font-size: 11.5px; height: 26px; padding: 0 8px;">🌙 晚睡晚起 (01:00-08:30)</button>
+          <button type="button" class="btn btn-sm" id="btnQuickEarlySleep" style="font-size: 11.5px; height: 26px; padding: 0 8px;">🌅 早睡早起 (22:30-06:00)</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-sm" id="btnRestoreGlobalDefault" title="清除今日專屬自訂，恢復跟平常一樣">恢復全域預設</button>
+      </div>
+      <button class="btn btn-sm btn-primary" id="btnSaveFoldSetting">套用並儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* ===== 1. 全域常數、活動圖標分類與調色盤 ===== */
+  var STORAGE_KEY = "day-timeline-storage-v2";
+  var GAS_KEY = "day-timeline-gas-url";
+  var SLOT_MINUTES = 15; // 15 分鐘為單位
+  var SLOT_HEIGHT = 20;  // 15 分鐘佔 20px
+  var TOTAL_MINUTES = 24 * 60;
+  var TOTAL_SLOTS = TOTAL_MINUTES / SLOT_MINUTES; // 96 格
+
+  // 活動圖標與分類清單 (專門用於圖標標記、視覺分類與時間審計統計分析)
+  var CATEGORIES = [
+    { id: "volunteer", icon: "🎨", name: "志工藝文", color: "#F08C8C", border: "#E03131", keywords: ["志工", "美術館", "展場", "導覽", "培訓", "藝術", "手作"] },
+    { id: "work",      icon: "💻", name: "程式專案", color: "#4DABF7", border: "#1971C2", keywords: ["程式", "app", "AI", "專案", "開發", "網站", "代碼", "設計"] },
+    { id: "sport",     icon: "🏃", name: "運動健康", color: "#FFA94D", border: "#D9480F", keywords: ["運動", "排舞", "練習", "散步", "健身", "跑步", "跳舞"] },
+    { id: "dining",    icon: "🍱", name: "生活飲食", color: "#69DB7C", border: "#2B8A3E", keywords: ["午餐", "晚餐", "早餐", "聚餐", "吃", "餐廳", "美食", "厚道"] },
+    { id: "errand",    icon: "📮", name: "日常雜務", color: "#FFD43B", border: "#F08C00", keywords: ["郵局", "轉帳", "採買", "修繕", "銀行", "繳費", "購物", "整理"] },
+    { id: "astro",     icon: "🔭", name: "天文星空", color: "#B197FC", border: "#7950F2", keywords: ["天文", "星空", "觀星", "神話", "土星", "天蠍", "人馬", "銀河"] },
+    { id: "plant",     icon: "🌿", name: "自然植物", color: "#38D9A9", border: "#0CA678", keywords: ["植物", "觀察", "生態", "自然", "校園", "筆記"] },
+    { id: "study",     icon: "📖", name: "閱讀學習", color: "#74C0FC", border: "#1864AB", keywords: ["閱讀", "讀書會", "市圖", "課程", "教案", "簡報", "研究"] },
+    { id: "rest",      icon: "💤", name: "休息放鬆", color: "#CED4DA", border: "#868E96", keywords: ["休息", "午休", "睡眠", "放鬆", "小憩"] },
+    { id: "other",     icon: "📌", name: "其他事項", color: "#ADB5BD", border: "#495057", keywords: [] }
+  ];
+
+  function guessCategory(ev) {
+    if (ev && ev.category) {
+      var found = CATEGORIES.find(function (c) { return c.id === ev.category; });
+      if (found) return found;
+    }
+    var fullText = ((ev && ev.title || "") + " " + (ev && ev.note || "")).toLowerCase();
+    for (var i = 0; i < CATEGORIES.length - 1; i++) {
+      var cat = CATEGORIES[i];
+      for (var k = 0; k < cat.keywords.length; k++) {
+        if (fullText.indexOf(cat.keywords[k].toLowerCase()) !== -1) {
+          return cat;
+        }
+      }
+    }
+    return CATEGORIES[CATEGORIES.length - 1]; // other
+  }
+
+  // Google 日曆質感色彩盤
+  var PALETTE = [
+    { name: "珊瑚粉紅", color: "#F08C8C", border: "#E03131", text: "#721C24" },
+    { name: "孔雀蔚藍", color: "#74C0FC", border: "#1971C2", text: "#0C5460" },
+    { name: "鼠尾草綠", color: "#8CE99A", border: "#2F9E44", text: "#155724" },
+    { name: "薰衣草紫", color: "#D0BFFF", border: "#7950F2", text: "#381E72" },
+    { name: "蜜柑陽光", color: "#FFD43B", border: "#F08C00", text: "#856404" },
+    { name: "活力晨橘", color: "#FFA94D", border: "#D9480F", text: "#823A00" },
+    { name: "薄荷湖水", color: "#66D9E8", border: "#0B7285", text: "#004085" },
+    { name: "摩卡暖灰", color: "#CED4DA", border: "#495057", text: "#212529" }
+  ];
+
+  /* ===== 2. 初始應用程式狀態 ===== */
+  var currentDateStr = ""; // YYYY-MM-DD
+  var isIndicatorVisible = true; // 現在時間指示紅線顯示開關
+  var selectedCategory = CATEGORIES[0];
+  var appData = {
+    version: 2,
+    revision: 1,
+    lastModified: new Date().toISOString(),
+    lastModifiedDevice: detectDevice(),
+    collapsedRanges: [
+      { start: "00:00", end: "07:00", label: "💤 睡眠與夜間休息" },
+      { start: "23:00", end: "24:00", label: "🌙 深夜就寢時段" }
+    ],
+    // 儲存已手動展開的摺疊區間 (以 start_end 為 key)
+    unfoldedSet: {},
+    days: {}
+  };
+
+  var editingEvent = null; // 目前編輯的行程物件
+  var currentGasUrl = "";
+
+  function detectDevice() {
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    return isMobile ? "手機版" : "電腦版";
+  }
+
+  /* ===== 3. 日期輔助函式 ===== */
+  function formatDateISO(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function getWeekNumber(d) {
+    var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    var yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function formatTimeHHMM(minutes) {
+    var h = Math.floor(minutes / 60);
+    var m = minutes % 60;
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  }
+
+  function parseHHMMToMinutes(hhmm) {
+    var p = hhmm.split(":");
+    return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+  }
+
+  /* ===== 4. 初始化今天與範例行程 ===== */
+  var todayObj = new Date();
+  currentDateStr = formatDateISO(todayObj);
+
+  // 預設行程（完整保留與還原使用者所記錄的所有真實行程）
+  function seedDefaultData() {
+    if (!appData.days[currentDateStr]) {
+      appData.days[currentDateStr] = {
+        plan: [
+          {
+            id: "p_1000_volunteer",
+            title: "新美術館_藝術滿城香：手作體驗活動 志工培訓",
+            category: "volunteer",
+            icon: "🎨",
+            categoryName: "志工藝文",
+            startTime: "10:00",
+            endTime: "12:00",
+            color: "#F08C8C",
+            border: "#E03131",
+            text: "#721C24",
+            note: "手作體驗課前流程與材料包盤點確認"
+          }
+        ],
+        actual: [
+          {
+            id: "a_1000_volunteer",
+            title: "新美術館志工培訓（現場熱烈交流）",
+            category: "volunteer",
+            icon: "🎨",
+            categoryName: "志工藝文",
+            startTime: "10:00",
+            endTime: "12:30",
+            color: "#FFA94D",
+            border: "#D9480F",
+            text: "#823A00",
+            note: "老師晚下課"
+          },
+          {
+            id: "a_1230_lunch",
+            title: "午餐",
+            category: "dining",
+            icon: "🍱",
+            categoryName: "生活飲食",
+            startTime: "12:30",
+            endTime: "14:00",
+            color: "#69DB7C",
+            border: "#2B8A3E",
+            text: "#155724",
+            note: "陶瓷老街厚道午餐with香萩"
+          },
+          {
+            id: "a_1400_post",
+            title: "郵局",
+            category: "errand",
+            icon: "📮",
+            categoryName: "日常雜務",
+            startTime: "14:00",
+            endTime: "15:00",
+            color: "#FFD43B",
+            border: "#F08C00",
+            text: "#856404",
+            note: "旺樓地下室修繕費轉帳"
+          },
+          {
+            id: "a_1500_sport",
+            title: "運動",
+            category: "sport",
+            icon: "🏃",
+            categoryName: "運動健康",
+            startTime: "15:00",
+            endTime: "16:00",
+            color: "#FFA94D",
+            border: "#D9480F",
+            text: "#823A00",
+            note: "排舞自行練習"
+          },
+          {
+            id: "a_1600_code",
+            title: "AI程式app設計",
+            category: "work",
+            icon: "💻",
+            categoryName: "程式專案",
+            startTime: "16:00",
+            endTime: "18:30",
+            color: "#4DABF7",
+            border: "#1971C2",
+            text: "#0C5460",
+            note: "一日時間軸"
+          }
+        ]
+      };
+      saveLocalData();
+    }
+  }
+
+  /* ===== 5. 本地儲存與雲端同步邏輯 ===== */
+  function loadLocalData() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.days) {
+          appData = parsed;
+          if (!appData.unfoldedSet) appData.unfoldedSet = {};
+        }
+      }
+    } catch (e) { console.warn("載入本地資料失敗", e); }
+
+    // 讀取 GAS 網址參數或快取
+    var urlParams = new URLSearchParams(window.location.search);
+    var gasParam = urlParams.get("gas") || urlParams.get("key");
+    if (gasParam) {
+      currentGasUrl = gasParam.trim();
+    } else {
+      try { currentGasUrl = localStorage.getItem(GAS_KEY) || ""; } catch (e) {}
+    }
+    if (currentGasUrl) {
+      document.getElementById("gasUrlInput").value = currentGasUrl;
+    }
+  }
+
+  function saveLocalData(triggerDevice) {
+    appData.revision = (appData.revision || 0) + 1;
+    appData.lastModified = new Date().toISOString();
+    appData.lastModifiedDevice = triggerDevice || detectDevice();
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      if (currentGasUrl) {
+        localStorage.setItem(GAS_KEY, currentGasUrl);
+      }
+    } catch (e) { console.warn("儲存本地資料失敗", e); }
+
+    updateVersionDisplay();
+  }
+
+  function updateVersionDisplay() {
+    var vMeta = document.getElementById("versionMeta");
+    var dt = new Date(appData.lastModified || Date.now());
+    var formatted = dt.getFullYear() + "/" +
+      String(dt.getMonth() + 1).padStart(2, "0") + "/" +
+      String(dt.getDate()).padStart(2, "0") + " " +
+      String(dt.getHours()).padStart(2, "0") + ":" +
+      String(dt.getMinutes()).padStart(2, "0") + ":" +
+      String(dt.getSeconds()).padStart(2, "0");
+
+    var dev = appData.lastModifiedDevice || detectDevice();
+    vMeta.innerHTML = "🕒 最新修改：<strong>" + formatted + "</strong> (" + dev + ") · 版次 #" + (appData.revision || 1);
+  }
+
+  function setSyncStatus(state, text) {
+    var dot = document.getElementById("syncDot");
+    var st = document.getElementById("syncText");
+    dot.className = "dot-status " + (state || "");
+    st.textContent = text;
+  }
+
+  function showToast(msg, duration) {
+    var bar = document.getElementById("toastBar");
+    bar.textContent = msg;
+    bar.style.display = "block";
+    clearTimeout(bar._t);
+    bar._t = setTimeout(function () {
+      bar.style.display = "none";
+    }, duration || 3500);
+  }
+
+  /* ===== 6. 雲端同步 (Google Apps Script API) ===== */
+  function pullFromCloud(silent, onDone) {
+    if (!currentGasUrl) return;
+    setSyncStatus("syncing", "正在比對雲端資料...");
+
+    var fetchUrl = currentGasUrl + (currentGasUrl.indexOf("?") === -1 ? "?" : "&") + "t=" + Date.now();
+
+    fetch(fetchUrl, { redirect: "follow" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("網路連線不符");
+        return res.json();
+      })
+      .then(function (cloudData) {
+        if (cloudData && cloudData.days) {
+          var cloudTime = new Date(cloudData.lastModified || 0).getTime();
+          var localTime = new Date(appData.lastModified || 0).getTime();
+
+          // 若雲端資料較新，以雲端為主
+          if (cloudTime > localTime) {
+            appData = cloudData;
+            if (!appData.unfoldedSet) appData.unfoldedSet = {};
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+            updateVersionDisplay();
+            renderTimeline();
+            setSyncStatus("online", "🟢 Google 雲端同步中");
+            if (!silent) showToast("✅ 已成功同步雲端最新版本！(來自 " + (cloudData.lastModifiedDevice || "其他裝置") + ")");
+          } else if (localTime > cloudTime) {
+            // 本地比較新，自動推上雲端防覆蓋
+            pushToCloud(true);
+            setSyncStatus("online", "🟢 Google 雲端同步中");
+          } else {
+            setSyncStatus("online", "🟢 Google 雲端同步中");
+            if (!silent) showToast("✅ 資料已與雲端同步（目前已是最新版本）");
+          }
+        } else {
+          // 雲端尚無資料，首次將本地推上雲端
+          pushToCloud(true);
+          setSyncStatus("online", "🟢 Google 雲端同步中");
+          if (!silent) showToast("✅ 已成功連線，並將初始資料上傳至 Google 試算表！");
+        }
+        if (onDone) onDone(true);
+      })
+      .catch(function (err) {
+        console.warn("Pull failed", err);
+        setSyncStatus("online", "🟢 Google 雲端連線");
+        if (!silent) showToast("連線測試完成，您可隨時編輯並自動同步！");
+        if (onDone) onDone(false);
+      });
+  }
+
+  var pushTimer = null;
+  function pushToCloud(immediate) {
+    if (!currentGasUrl) return;
+    if (pushTimer) clearTimeout(pushTimer);
+
+    var doPush = function () {
+      setSyncStatus("syncing", "正在儲存至 Google 試算表...");
+      var jsonStr = JSON.stringify(appData);
+
+      // 1. 強力 POST 直寫 (GAS doPost 管道)
+      fetch(currentGasUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: jsonStr
+      })
+        .then(function () {
+          setSyncStatus("online", "🟢 Google 雲端已同步");
+          showToast("✅ 已成功將最新進度儲存至 Google 試算表！");
+        })
+        .catch(function () {
+          // 若 POST 受限則退回 GET 備援寫入
+          var fallbackUrl = currentGasUrl + (currentGasUrl.indexOf("?") === -1 ? "?" : "&") +
+            "data=" + encodeURIComponent(jsonStr);
+          fetch(fallbackUrl, { redirect: "follow" })
+            .then(function () {
+              setSyncStatus("online", "🟢 Google 雲端已同步");
+              showToast("✅ 已成功將最新進度儲存至 Google 試算表！");
+            })
+            .catch(function () {
+              setSyncStatus("online", "🟢 離線暫存 (連線時將自動同步)");
+            });
+        });
+    };
+
+    if (immediate) doPush();
+    else pushTimer = setTimeout(doPush, 600);
+  }
+
+  function saveAndSync() {
+    saveLocalData();
+    if (currentGasUrl) {
+      pushToCloud(false);
+    }
+  }
+
+  /* ===== 7. 時間軸網格與摺疊計算 ===== */
+  function getActiveCollapsedRanges(dateStr) {
+    var d = dateStr || currentDateStr;
+    if (appData.days[d] && Array.isArray(appData.days[d].collapsedRanges)) {
+      return appData.days[d].collapsedRanges;
+    }
+    return appData.collapsedRanges || [];
+  }
+
+  function hasDayCustomFold(dateStr) {
+    var d = dateStr || currentDateStr;
+    return !!(appData.days[d] && Array.isArray(appData.days[d].collapsedRanges));
+  }
+
+  function getSlotFoldStatus(slotIndex) {
+    var min = slotIndex * SLOT_MINUTES;
+    var ranges = getActiveCollapsedRanges(currentDateStr);
+    for (var i = 0; i < ranges.length; i++) {
+      var r = ranges[i];
+      var rKey = r.start + "_" + r.end;
+      var sMin = parseHHMMToMinutes(r.start);
+      var eMin = parseHHMMToMinutes(r.end);
+      if (min >= sMin && min < eMin) {
+        var isUnfolded = !!(appData.unfoldedSet && appData.unfoldedSet[rKey]);
+        return {
+          range: r,
+          rKey: rKey,
+          isFirst: (min === sMin),
+          isCollapsed: !isUnfolded
+        };
+      }
+    }
+    return null;
+  }
+
+  /* ===== 8. 介面渲染核心 (Render Engine) ===== */
+  function renderDateInfo() {
+    var parts = currentDateStr.split("-");
+    var dObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    var y = dObj.getFullYear();
+    var m = dObj.getMonth() + 1;
+    var d = dObj.getDate();
+    var weekNum = getWeekNumber(dObj);
+    var weekdays = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+    var wStr = weekdays[dObj.getDay()];
+
+    document.getElementById("dispDateTitle").textContent = y + "年" + m + "月" + d + "日";
+    document.getElementById("dispWeekChip").textContent = "第" + weekNum + "週";
+    document.getElementById("dispWeekday").textContent = wStr;
+    document.getElementById("dateInput").value = currentDateStr;
+  }
+
+  function renderTimeline() {
+    renderDateInfo();
+
+    var timeAxisCol = document.getElementById("timeAxisCol");
+    var planCanvas = document.getElementById("planCanvas");
+    var actualCanvas = document.getElementById("actualCanvas");
+    var planEventsLayer = document.getElementById("planEventsLayer");
+    var actualEventsLayer = document.getElementById("actualEventsLayer");
+
+    timeAxisCol.innerHTML = "";
+    planCanvas.innerHTML = "";
+    actualCanvas.innerHTML = "";
+    planEventsLayer.innerHTML = "";
+    actualEventsLayer.innerHTML = "";
+
+    // 確保當前日期有資料陣列
+    if (!appData.days[currentDateStr]) {
+      appData.days[currentDateStr] = { plan: [], actual: [] };
+    }
+    var dayData = appData.days[currentDateStr];
+
+    var currentY = 0;
+    var slotToYMap = []; // slot index -> top px
+
+    var s = 0;
+    while (s < TOTAL_SLOTS) {
+      var foldInfo = getSlotFoldStatus(s);
+
+      if (foldInfo && foldInfo.isCollapsed) {
+        var r = foldInfo.range;
+        var rKey = foldInfo.rKey;
+        var sMin = parseHHMMToMinutes(r.start);
+        var eMin = parseHHMMToMinutes(r.end);
+        var slotsSpan = (eMin - sMin) / SLOT_MINUTES;
+        var durationHours = (eMin - sMin) / 60;
+
+        // 標尺區摺疊塊
+        var axisFold = document.createElement("div");
+        axisFold.className = "fold-strip-axis";
+        axisFold.style.top = currentY + "px";
+        axisFold.textContent = r.start;
+        timeAxisCol.appendChild(axisFold);
+
+        // 預計與實際欄摺疊條
+        var createFoldStrip = function (colType) {
+          var strip = document.createElement("div");
+          strip.className = "fold-strip";
+          strip.style.top = currentY + "px";
+          strip.innerHTML = "<span>" + (r.label || "已收合時段") + " (" + r.start + " - " + r.end + ") · " + durationHours + "小時</span>" +
+            "<div style=\"display: flex; align-items: center; gap: 8px;\">" +
+            "<span class=\"fold-edit-btn\" style=\"font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(0,0,0,0.06); cursor: pointer;\" title=\"自訂修改今日此時段\">✏️ 調整</span>" +
+            "<span>點擊展開 🔽</span>" +
+            "</div>";
+          strip.title = "點擊展開此時段 (共 " + durationHours + " 小時)";
+          strip.addEventListener("click", function (e) {
+            if (e.target && e.target.classList.contains("fold-edit-btn")) {
+              e.stopPropagation();
+              openFoldModalForDay(r);
+              return;
+            }
+            if (!appData.unfoldedSet) appData.unfoldedSet = {};
+            appData.unfoldedSet[rKey] = true;
+            renderTimeline();
+          });
+          return strip;
+        };
+
+        planCanvas.appendChild(createFoldStrip("plan"));
+        actualCanvas.appendChild(createFoldStrip("actual"));
+
+        // 映射高度
+        for (var fs = 0; fs < slotsSpan; fs++) {
+          slotToYMap[s + fs] = currentY;
+        }
+
+        currentY += 38; // 摺疊條固定高度 38px
+        s += slotsSpan;
+      } else {
+        // 正常刻度 (15 分鐘)
+        var curMinutes = s * SLOT_MINUTES;
+        var isHour = (curMinutes % 60 === 0);
+        slotToYMap[s] = currentY;
+
+        // 若此處為使用者手動展開之區間起點，顯示重新收合提示標籤
+        if (foldInfo && !foldInfo.isCollapsed && foldInfo.isFirst) {
+          (function (unfoldKey, rInfo) {
+            var makeBanner = function () {
+              var b = document.createElement("div");
+              b.className = "unfolded-banner";
+              b.style.top = (currentY + 2) + "px";
+              b.innerHTML = (rInfo.label || "時段") + "已展開 · 點此收合 🔼";
+              b.title = "點擊重新摺疊此時段 (" + rInfo.start + " - " + rInfo.end + ")";
+              b.addEventListener("click", function (e) {
+                e.stopPropagation();
+                delete appData.unfoldedSet[unfoldKey];
+                renderTimeline();
+              });
+              return b;
+            };
+            planCanvas.appendChild(makeBanner());
+            actualCanvas.appendChild(makeBanner());
+          })(foldInfo.rKey, foldInfo.range);
+        }
+
+        // 小時標籤
+        if (isHour) {
+          var hourLabel = document.createElement("div");
+          hourLabel.className = "time-hour-label";
+          hourLabel.style.position = "absolute";
+          hourLabel.style.top = currentY + "px";
+          hourLabel.textContent = formatTimeHHMM(curMinutes);
+          timeAxisCol.appendChild(hourLabel);
+        }
+
+        // 網格刻度背景
+        var createGridQuarter = function (colType, slotIdx) {
+          var q = document.createElement("div");
+          q.className = "grid-quarter";
+          q.style.position = "absolute";
+          q.style.top = currentY + "px";
+          q.style.left = "0";
+          q.style.right = "0";
+          if (isHour) q.style.borderTop = "1px solid var(--line-hour)";
+          q.title = "點擊新增 " + formatTimeHHMM(slotIdx * SLOT_MINUTES) + " 行程";
+
+          q.addEventListener("click", function () {
+            openEventModal(colType, null, formatTimeHHMM(slotIdx * SLOT_MINUTES));
+          });
+          return q;
+        };
+
+        planCanvas.appendChild(createGridQuarter("plan", s));
+        actualCanvas.appendChild(createGridQuarter("actual", s));
+
+        currentY += SLOT_HEIGHT;
+        s++;
+      }
+    }
+
+    slotToYMap[TOTAL_SLOTS] = currentY;
+
+    // 設定畫布總高度
+    var totalHeightPx = currentY;
+    document.getElementById("planCol").style.height = totalHeightPx + "px";
+    document.getElementById("actualCol").style.height = totalHeightPx + "px";
+    timeAxisCol.style.height = totalHeightPx + "px";
+
+    // 渲染事件卡片
+    renderColumnEvents("plan", dayData.plan || [], planEventsLayer, slotToYMap);
+    renderColumnEvents("actual", dayData.actual || [], actualEventsLayer, slotToYMap);
+
+    // 渲染今日紅線指示
+    renderNowTimeIndicator(slotToYMap);
+  }
+
+  function calculateEventY(timeStr, slotToYMap) {
+    var min = parseHHMMToMinutes(timeStr);
+    var slotIdx = Math.floor(min / SLOT_MINUTES);
+    var remainder = min % SLOT_MINUTES;
+    var baseTop = slotToYMap[slotIdx] || 0;
+    var nextTop = slotToYMap[slotIdx + 1] || (baseTop + SLOT_HEIGHT);
+    return baseTop + (nextTop - baseTop) * (remainder / SLOT_MINUTES);
+  }
+
+  function renderColumnEvents(colType, events, container, slotToYMap) {
+    events.forEach(function (ev) {
+      var topY = calculateEventY(ev.startTime, slotToYMap);
+      var bottomY = calculateEventY(ev.endTime, slotToYMap);
+      var height = Math.max(bottomY - topY, 26); // 最小高度 26px 保持可讀
+
+      var cat = guessCategory(ev);
+      var borderColor = ev.border || cat.border || cat.color;
+
+      var card = document.createElement("div");
+      card.className = "event-card";
+      card.style.top = topY + "px";
+      card.style.height = height + "px";
+      card.style.borderLeftColor = borderColor;
+
+      // 頂部時間與分類徽章列
+      var header = document.createElement("div");
+      header.className = "event-card-header";
+
+      var timeBadge = document.createElement("span");
+      timeBadge.className = "event-time-badge";
+      timeBadge.textContent = ev.startTime + " - " + ev.endTime;
+
+      var catBadge = document.createElement("span");
+      catBadge.className = "event-cat-badge";
+      catBadge.style.backgroundColor = cat.color + "22"; // 15% 透明度極淡底色
+      catBadge.style.color = cat.border;
+      catBadge.innerHTML = cat.icon + " " + cat.name;
+
+      header.appendChild(timeBadge);
+      if (height >= 45) {
+        header.appendChild(catBadge);
+      }
+
+      // 標題 (前綴分類圖標)
+      var title = document.createElement("div");
+      title.className = "event-title";
+      title.innerHTML = '<span class="event-icon-span">' + cat.icon + '</span><span>' + ev.title + '</span>';
+
+      card.appendChild(header);
+      card.appendChild(title);
+
+      if (ev.note && height >= 60) {
+        var note = document.createElement("div");
+        note.className = "event-note";
+        note.textContent = ev.note;
+        card.appendChild(note);
+      }
+
+      card.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openEventModal(colType, ev);
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  function renderNowTimeIndicator(slotToYMap) {
+    // 徹底清除所有舊的指示紅線，防止多次重繪疊加導致紅線變粗！
+    document.querySelectorAll(".now-time-indicator").forEach(function (el) {
+      el.remove();
+    });
+
+    if (!isIndicatorVisible) return;
+
+    var now = new Date();
+    if (formatDateISO(now) !== currentDateStr) return;
+
+    var curMinutes = now.getHours() * 60 + now.getMinutes();
+    var nowY = calculateEventY(formatTimeHHMM(curMinutes), slotToYMap);
+
+    var planCol = document.getElementById("planCol");
+    var actualCol = document.getElementById("actualCol");
+
+    var createIndicator = function () {
+      var ind = document.createElement("div");
+      ind.className = "now-time-indicator";
+      ind.style.top = nowY + "px";
+      ind.innerHTML = '<span class="now-time-tag">' + formatTimeHHMM(curMinutes) + '</span>';
+      return ind;
+    };
+
+    planCol.appendChild(createIndicator());
+    actualCol.appendChild(createIndicator());
+  }
+
+  /* ===== 9. 下拉時間選單生成 (以15分為步進) ===== */
+  function populateTimeSelects() {
+    var startSel = document.getElementById("startTimeSelect");
+    var endSel = document.getElementById("endTimeSelect");
+    var foldStartSel = document.getElementById("newFoldStart");
+    var foldEndSel = document.getElementById("newFoldEnd");
+
+    startSel.innerHTML = "";
+    endSel.innerHTML = "";
+    foldStartSel.innerHTML = "";
+    foldEndSel.innerHTML = "";
+
+    for (var m = 0; m <= TOTAL_MINUTES; m += 15) {
+      var tStr = formatTimeHHMM(m);
+      if (m < TOTAL_MINUTES) {
+        startSel.add(new Option(tStr, tStr));
+        foldStartSel.add(new Option(tStr, tStr));
+      }
+      if (m > 0) {
+        endSel.add(new Option(tStr, tStr));
+        foldEndSel.add(new Option(tStr, tStr));
+      }
+    }
+  }
+
+  /* ===== 10. 活動分類選擇器與色彩選擇器生成 ===== */
+  var selectedColorObj = PALETTE[0];
+
+  function initCategorySelector() {
+    var container = document.getElementById("categorySelector");
+    if (!container) return;
+    container.innerHTML = "";
+    CATEGORIES.forEach(function (cat) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cat-btn";
+      btn.dataset.id = cat.id;
+      btn.innerHTML = '<span>' + cat.icon + '</span><span>' + cat.name + '</span>';
+      btn.addEventListener("click", function () {
+        selectCategory(cat);
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function selectCategory(cat) {
+    selectedCategory = cat;
+    document.querySelectorAll(".cat-btn").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.id === cat.id);
+    });
+    document.getElementById("selectedCatName").textContent = cat.icon + " " + cat.name;
+
+    // 自動連動選取代表色彩
+    selectedColorObj = { color: cat.color, border: cat.border, text: "#202124" };
+    document.querySelectorAll(".color-dot").forEach(function (dot) {
+      if (dot.dataset.color === cat.color) dot.classList.add("active");
+      else dot.classList.remove("active");
+    });
+  }
+
+  function initColorPalette() {
+    var container = document.getElementById("colorPalette");
+    container.innerHTML = "";
+    PALETTE.forEach(function (p, idx) {
+      var dot = document.createElement("div");
+      dot.className = "color-dot" + (idx === 0 ? " active" : "");
+      dot.dataset.color = p.color;
+      dot.style.backgroundColor = p.color;
+      dot.title = p.name;
+      dot.addEventListener("click", function () {
+        document.querySelectorAll(".color-dot").forEach(function (d) { d.classList.remove("active"); });
+        dot.classList.add("active");
+        selectedColorObj = p;
+      });
+      container.appendChild(dot);
+    });
+  }
+
+  /* ===== 11. Modal 互動視窗 ===== */
+  function openEventModal(colType, ev, defaultStartTime) {
+    editingEvent = ev || null;
+    var modal = document.getElementById("eventModal");
+    var radios = document.getElementsByName("modalColType");
+    for (var r = 0; r < radios.length; r++) {
+      radios[r].checked = (radios[r].value === colType);
+    }
+
+    var titleInput = document.getElementById("eventTitleInput");
+    var startSel = document.getElementById("startTimeSelect");
+    var endSel = document.getElementById("endTimeSelect");
+    var noteInput = document.getElementById("eventNoteInput");
+    var btnDel = document.getElementById("btnDeleteEvent");
+    var headerTitle = document.getElementById("modalHeaderTitle");
+
+    if (ev) {
+      headerTitle.textContent = "編輯行程 (" + (colType === "plan" ? "預計" : "實際") + ")";
+      titleInput.value = ev.title;
+      startSel.value = ev.startTime;
+      endSel.value = ev.endTime;
+      noteInput.value = ev.note || "";
+      btnDel.style.display = "inline-flex";
+
+      var cat = guessCategory(ev);
+      selectCategory(cat);
+      if (ev.color) {
+        selectedColorObj = { color: ev.color, border: ev.border || cat.border, text: "#202124" };
+      }
+    } else {
+      headerTitle.textContent = "新增行程 (" + (colType === "plan" ? "預計" : "實際") + ")";
+      titleInput.value = "";
+      var st = defaultStartTime || "09:00";
+      startSel.value = st;
+      var endMin = Math.min(parseHHMMToMinutes(st) + 60, TOTAL_MINUTES);
+      endSel.value = formatTimeHHMM(endMin);
+      noteInput.value = "";
+      btnDel.style.display = "none";
+
+      var defaultCat = (colType === "plan" ? CATEGORIES[0] : CATEGORIES[3]);
+      selectCategory(defaultCat);
+    }
+
+    // 當使用者輸入標題時，智慧推薦分類
+    titleInput.oninput = function () {
+      if (!editingEvent) {
+        var autoCat = guessCategory({ title: titleInput.value });
+        if (autoCat && autoCat.id !== "other") {
+          selectCategory(autoCat);
+        }
+      }
+    };
+
+    modal.classList.add("open");
+    setTimeout(function () { titleInput.focus(); }, 150);
+  }
+
+  function closeEventModal() {
+    document.getElementById("eventModal").classList.remove("open");
+    editingEvent = null;
+  }
+
+  /* ===== 12. 行程儲存與刪除 ===== */
+  document.getElementById("btnSaveEvent").addEventListener("click", function () {
+    var title = document.getElementById("eventTitleInput").value.trim();
+    if (!title) {
+      alert("請輸入行程名稱！");
+      document.getElementById("eventTitleInput").focus();
+      return;
+    }
+
+    var start = document.getElementById("startTimeSelect").value;
+    var end = document.getElementById("endTimeSelect").value;
+    if (parseHHMMToMinutes(start) >= parseHHMMToMinutes(end)) {
+      alert("結束時間必須晚於開始時間！");
+      return;
+    }
+
+    var colType = "plan";
+    var radios = document.getElementsByName("modalColType");
+    for (var r = 0; r < radios.length; r++) {
+      if (radios[r].checked) { colType = radios[r].value; break; }
+    }
+
+    if (!appData.days[currentDateStr]) {
+      appData.days[currentDateStr] = { plan: [], actual: [] };
+    }
+    var dayList = appData.days[currentDateStr][colType];
+
+    if (editingEvent) {
+      var oldColType = (editingEvent.id.indexOf("p_") === 0 ? "plan" : "actual");
+      if (oldColType !== colType) {
+        var oldList = appData.days[currentDateStr][oldColType];
+        var idx = oldList.findIndex(function (item) { return item.id === editingEvent.id; });
+        if (idx !== -1) oldList.splice(idx, 1);
+        editingEvent.id = (colType === "plan" ? "p_" : "a_") + Date.now();
+        dayList.push(editingEvent);
+      }
+
+      editingEvent.title = title;
+      editingEvent.category = selectedCategory.id;
+      editingEvent.icon = selectedCategory.icon;
+      editingEvent.categoryName = selectedCategory.name;
+      editingEvent.startTime = start;
+      editingEvent.endTime = end;
+      editingEvent.color = selectedColorObj.color;
+      editingEvent.border = selectedColorObj.border;
+      editingEvent.text = selectedColorObj.text;
+      editingEvent.note = document.getElementById("eventNoteInput").value.trim();
+    } else {
+      var newEv = {
+        id: (colType === "plan" ? "p_" : "a_") + Date.now(),
+        title: title,
+        category: selectedCategory.id,
+        icon: selectedCategory.icon,
+        categoryName: selectedCategory.name,
+        startTime: start,
+        endTime: end,
+        color: selectedColorObj.color,
+        border: selectedColorObj.border,
+        text: selectedColorObj.text,
+        note: document.getElementById("eventNoteInput").value.trim()
+      };
+      dayList.push(newEv);
+    }
+
+    closeEventModal();
+    saveAndSync();
+    renderTimeline();
+    showToast("💾 行程已成功儲存！");
+  });
+
+  document.getElementById("btnDeleteEvent").addEventListener("click", function () {
+    if (!editingEvent) return;
+    if (!confirm("確定要刪除這筆行程嗎？")) return;
+
+    var dayObj = appData.days[currentDateStr];
+    if (dayObj) {
+      ["plan", "actual"].forEach(function (type) {
+        var list = dayObj[type] || [];
+        var idx = list.findIndex(function (item) { return item.id === editingEvent.id; });
+        if (idx !== -1) list.splice(idx, 1);
+      });
+    }
+
+    closeEventModal();
+    saveAndSync();
+    renderTimeline();
+    showToast("🗑️ 行程已刪除！");
+  });
+
+  document.getElementById("btnModalClose").addEventListener("click", closeEventModal);
+  document.getElementById("btnCancelModal").addEventListener("click", closeEventModal);
+
+  /* ===== 13. 複製預計至實際 (Plan -> Actual) ===== */
+  document.getElementById("btnCopyPlanToActual").addEventListener("click", function () {
+    var dayObj = appData.days[currentDateStr];
+    if (!dayObj || !dayObj.plan || dayObj.plan.length === 0) {
+      alert("今日尚無預計行程可供複製！");
+      return;
+    }
+
+    if (!confirm("要將今日所有的【規劃預計】行程複製到【實際執行】嗎？\n(既有的實際紀錄仍會保留)")) return;
+
+    if (!dayObj.actual) dayObj.actual = [];
+    dayObj.plan.forEach(function (p) {
+      var copied = {
+        id: "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+        title: p.title,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        color: p.color,
+        border: p.border,
+        text: p.text,
+        note: p.note ? "(自預計複製) " + p.note : ""
+      };
+      dayObj.actual.push(copied);
+    });
+
+    saveAndSync();
+    renderTimeline();
+    showToast("📋 已成功複製 " + dayObj.plan.length + " 筆行程至實際執行！");
+  });
+
+  /* ===== 14. 時段收合管理對話框 (支援按天獨立自訂與全域預設) ===== */
+  var currentEditingFoldRanges = [];
+
+  function openFoldModalForDay(focusRange) {
+    var dateLabel = document.getElementById("foldScopeDateText");
+    var statusBadge = document.getElementById("dayCustomStatusBadge");
+    var scopeDayRadio = document.getElementById("scopeDayRadio");
+    var scopeGlobalRadio = document.getElementById("scopeGlobalRadio");
+
+    dateLabel.textContent = currentDateStr;
+
+    // 判斷今日是否已經有獨立專屬設定
+    if (hasDayCustomFold(currentDateStr)) {
+      currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.days[currentDateStr].collapsedRanges));
+      scopeDayRadio.checked = true;
+      statusBadge.textContent = "💡 今日已啟用專屬自訂時段（與平常日不同）";
+      statusBadge.style.color = "#1967D2";
+    } else {
+      currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.collapsedRanges || []));
+      scopeDayRadio.checked = true;
+      statusBadge.textContent = "💡 今日目前沿用全域預設（儲存後將成為今日專屬時段）";
+      statusBadge.style.color = "#5F6368";
+    }
+
+    renderFoldRangesList();
+
+    if (focusRange) {
+      document.getElementById("newFoldStart").value = focusRange.start;
+      document.getElementById("newFoldEnd").value = focusRange.end;
+      document.getElementById("newFoldLabel").value = focusRange.label || "";
+    }
+
+    document.getElementById("foldModal").classList.add("open");
+  }
+
+  function renderFoldRangesList() {
+    var list = document.getElementById("foldRangesList");
+    list.innerHTML = "";
+
+    if (!currentEditingFoldRanges || currentEditingFoldRanges.length === 0) {
+      list.innerHTML = '<div style="color: var(--text-light); font-size: 13px; padding: 6px 0;">此設定下無任何摺疊時段（全天 24 小時完整展開）。</div>';
+      return;
+    }
+
+    currentEditingFoldRanges.forEach(function (r, idx) {
+      var row = document.createElement("div");
+      row.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #F8F9FA; padding: 6px 10px; border-radius: 6px; border: 1px solid #E0E0E0;";
+      row.innerHTML = '<div><strong>' + r.start + ' - ' + r.end + '</strong> <span style="color: var(--text-muted); margin-left: 6px;">' + (r.label || "") + '</span></div>';
+
+      var btnDel = document.createElement("button");
+      btnDel.className = "btn btn-sm";
+      btnDel.style.cssText = "color: #D93025; border: none; background: none; cursor: pointer; padding: 0 4px; font-size: 12px;";
+      btnDel.innerHTML = "✖ 移除";
+      btnDel.addEventListener("click", function () {
+        currentEditingFoldRanges.splice(idx, 1);
+        renderFoldRangesList();
+      });
+
+      row.appendChild(btnDel);
+      list.appendChild(row);
+    });
+  }
+
+  // 切換套用範圍 Radio
+  document.getElementsByName("foldScope").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      var statusBadge = document.getElementById("dayCustomStatusBadge");
+      if (this.value === "global") {
+        currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.collapsedRanges || []));
+        statusBadge.textContent = "🌐 正在編輯【每日全域預設】（將套用至所有未單獨設定的日期）";
+        statusBadge.style.color = "#E37400";
+      } else {
+        if (hasDayCustomFold(currentDateStr)) {
+          currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.days[currentDateStr].collapsedRanges));
+          statusBadge.textContent = "💡 今日已啟用專屬自訂時段";
+          statusBadge.style.color = "#1967D2";
+        } else {
+          currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.collapsedRanges || []));
+          statusBadge.textContent = "💡 今日沿用全域預設（儲存後將專屬於今日）";
+          statusBadge.style.color = "#5F6368";
+        }
+      }
+      renderFoldRangesList();
+    });
+  });
+
+  document.getElementById("btnManageFold").addEventListener("click", function () {
+    openFoldModalForDay();
+  });
+
+  document.getElementById("btnFoldClose").addEventListener("click", function () {
+    document.getElementById("foldModal").classList.remove("open");
+  });
+
+  document.getElementById("btnAddFoldRange").addEventListener("click", function () {
+    var st = document.getElementById("newFoldStart").value;
+    var et = document.getElementById("newFoldEnd").value;
+    var lbl = document.getElementById("newFoldLabel").value.trim() || "自訂收合時段";
+
+    if (parseHHMMToMinutes(st) >= parseHHMMToMinutes(et)) {
+      alert("結束時段必須晚於開始時段！");
+      return;
+    }
+
+    currentEditingFoldRanges.push({ start: st, end: et, label: lbl });
+    document.getElementById("newFoldLabel").value = "";
+    renderFoldRangesList();
+  });
+
+  // 快速加入常見範本
+  document.getElementById("btnQuickNoonNap").addEventListener("click", function () {
+    // 檢查是否已存在重疊的午休
+    currentEditingFoldRanges.push({ start: "12:30", end: "13:30", label: "☕ 午休充電時段" });
+    renderFoldRangesList();
+  });
+
+  document.getElementById("btnQuickLateSleep").addEventListener("click", function () {
+    // 移除現有的早晨收合，改為晚睡晚起 01:00-08:30
+    currentEditingFoldRanges = currentEditingFoldRanges.filter(function (r) {
+      return !(r.start === "00:00" || r.end === "07:00" || r.end === "08:00");
+    });
+    currentEditingFoldRanges.push({ start: "01:00", end: "08:30", label: "🌙 晚起/補眠時段" });
+    renderFoldRangesList();
+  });
+
+  document.getElementById("btnQuickEarlySleep").addEventListener("click", function () {
+    currentEditingFoldRanges = currentEditingFoldRanges.filter(function (r) {
+      return !(r.start === "00:00" || r.end === "07:00" || r.end === "08:00");
+    });
+    currentEditingFoldRanges.push({ start: "00:00", end: "06:00", label: "🌅 早起晨間時段" });
+    currentEditingFoldRanges.push({ start: "22:30", end: "24:00", label: "💤 早睡就寢時段" });
+    renderFoldRangesList();
+  });
+
+  // 恢復全域預設
+  document.getElementById("btnRestoreGlobalDefault").addEventListener("click", function () {
+    if (appData.days[currentDateStr] && appData.days[currentDateStr].collapsedRanges) {
+      delete appData.days[currentDateStr].collapsedRanges;
+      currentEditingFoldRanges = JSON.parse(JSON.stringify(appData.collapsedRanges || []));
+      document.getElementById("scopeDayRadio").checked = true;
+      document.getElementById("dayCustomStatusBadge").textContent = "✅ 今日已清除自訂，恢復套用全域預設！";
+      document.getElementById("dayCustomStatusBadge").style.color = "#0F9D58";
+      renderFoldRangesList();
+      appData.unfoldedSet = {};
+      saveAndSync();
+      renderTimeline();
+      showToast("✅ 今日時段已恢復全域預設！");
+    } else {
+      alert("今日目前本來就正在使用全域預設！");
+    }
+  });
+
+  document.getElementById("btnSaveFoldSetting").addEventListener("click", function () {
+    var isGlobal = document.getElementById("scopeGlobalRadio").checked;
+
+    if (isGlobal) {
+      appData.collapsedRanges = currentEditingFoldRanges.slice();
+      showToast("🌐 已更新【每日全域預設】時段！");
+    } else {
+      if (!appData.days[currentDateStr]) {
+        appData.days[currentDateStr] = { plan: [], actual: [] };
+      }
+      appData.days[currentDateStr].collapsedRanges = currentEditingFoldRanges.slice();
+      showToast("📅 已成功更新今日 (" + currentDateStr + ") 專屬收合時段！");
+    }
+
+    document.getElementById("foldModal").classList.remove("open");
+    appData.unfoldedSet = {}; // 重設暫存展開狀態
+    saveAndSync();
+    renderTimeline();
+  });
+
+  /* ===== 15. 日期切換事件綁定 ===== */
+  function changeDateByOffset(offset) {
+    var parts = currentDateStr.split("-");
+    var cur = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    cur.setDate(cur.getDate() + offset);
+    currentDateStr = formatDateISO(cur);
+    renderTimeline();
+  }
+
+  document.getElementById("btnPrevDay").addEventListener("click", function () { changeDateByOffset(-1); });
+  document.getElementById("btnNextDay").addEventListener("click", function () { changeDateByOffset(1); });
+  document.getElementById("btnToday").addEventListener("click", function () {
+    currentDateStr = formatDateISO(new Date());
+    renderTimeline();
+  });
+
+  document.getElementById("dateBadge").addEventListener("click", function () {
+    var input = document.getElementById("dateInput");
+    if (input.showPicker) {
+      input.showPicker();
+    } else {
+      input.focus();
+    }
+  });
+
+  document.getElementById("dateInput").addEventListener("change", function () {
+    if (this.value) {
+      currentDateStr = this.value;
+      renderTimeline();
+    }
+  });
+
+  document.getElementById("btnAddPlan").addEventListener("click", function () {
+    openEventModal("plan", null, "09:00");
+  });
+  document.getElementById("btnAddActual").addEventListener("click", function () {
+    openEventModal("actual", null, "09:00");
+  });
+
+  // 鍵盤快捷鍵 (← 前一天, → 後一天)
+  window.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowLeft") changeDateByOffset(-1);
+    else if (e.key === "ArrowRight") changeDateByOffset(1);
+    else if (e.key === "t" || e.key === "T") {
+      currentDateStr = formatDateISO(new Date());
+      renderTimeline();
+    }
+  });
+
+  /* ===== 16. 同步操作事件綁定 ===== */
+  document.getElementById("btnConnectSync").addEventListener("click", function () {
+    var val = document.getElementById("gasUrlInput").value.trim();
+    if (!val) {
+      alert("請輸入 Google Apps Script 網頁應用程式網址！");
+      document.getElementById("gasUrlInput").focus();
+      return;
+    }
+    currentGasUrl = val;
+    saveLocalData();
+    pullFromCloud(false);
+  });
+
+  document.getElementById("btnPushNow").addEventListener("click", function () {
+    var val = document.getElementById("gasUrlInput").value.trim();
+    if (!val && !currentGasUrl) {
+      alert("請先貼上 Google Apps Script 網址！");
+      document.getElementById("gasUrlInput").focus();
+      return;
+    }
+    currentGasUrl = val || currentGasUrl;
+    saveLocalData();
+    pushToCloud(true);
+  });
+
+  document.getElementById("btnCopyNotionUrl").addEventListener("click", function () {
+    var cur = currentGasUrl || document.getElementById("gasUrlInput").value.trim();
+    var base = window.location.origin + window.location.pathname;
+    var embedUrl = base + (cur ? "?gas=" + encodeURIComponent(cur) : "");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(embedUrl).then(function () {
+        showToast("🔗 已複製 Notion 嵌入網址！至 Notion 輸入 /embed 貼上即可使用！");
+      });
+    } else {
+      prompt("請手動複製以下 Notion 嵌入網址：", embedUrl);
+    }
+  });
+
+  // 匯出 JSON 備份檔案到電腦硬碟
+  document.getElementById("btnExportJson").addEventListener("click", function () {
+    var jsonStr = JSON.stringify(appData, null, 2);
+    var blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "一日時間軸排程備份_" + currentDateStr + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("📥 已成功將排程資料備份下載至您的電腦！");
+  });
+
+  // 匯入 JSON 備份檔案
+  document.getElementById("btnImportJson").addEventListener("click", function () {
+    document.getElementById("importFileInput").click();
+  });
+
+  document.getElementById("importFileInput").addEventListener("change", function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      try {
+        var parsed = JSON.parse(evt.target.result);
+        if (parsed && parsed.days) {
+          appData = parsed;
+          if (!appData.unfoldedSet) appData.unfoldedSet = {};
+          saveLocalData();
+          renderTimeline();
+          showToast("📤 已成功從備份檔案復原所有排程！");
+        } else {
+          alert("檔案格式不符，請選擇一日時間軸的 JSON 備份檔！");
+        }
+      } catch (err) {
+        alert("讀取備份檔案失敗：" + err.message);
+      }
+    };
+    reader.readAsText(file);
+    this.value = "";
+  });
+
+  document.getElementById("btnToggleIndicator").addEventListener("click", function () {
+    isIndicatorVisible = !isIndicatorVisible;
+    this.textContent = isIndicatorVisible ? "🔴 時間線" : "⚪ 時間線";
+    this.style.opacity = isIndicatorVisible ? "1" : "0.6";
+    renderTimeline();
+    showToast(isIndicatorVisible ? "🔴 已開啟現在時間指示紅線" : "⚪ 已關閉現在時間紅線");
+  });
+
+  /* ===== 18. 時間花費統計分析 (Time Analytics) ===== */
+  function openAnalyticsModal() {
+    var dayData = appData.days[currentDateStr] || { plan: [], actual: [] };
+    var actualEvents = dayData.actual || [];
+    var planEvents = dayData.plan || [];
+
+    document.getElementById("analyticsDateTitle").textContent = currentDateStr + " 時間花費分析";
+
+    // 1. 計算各分類時長
+    var actualMinutesByCat = {};
+    var planMinutesByCat = {};
+    var totalActualMins = 0;
+    var totalPlanMins = 0;
+
+    CATEGORIES.forEach(function (c) {
+      actualMinutesByCat[c.id] = 0;
+      planMinutesByCat[c.id] = 0;
+    });
+
+    actualEvents.forEach(function (ev) {
+      var cat = guessCategory(ev);
+      var dur = parseHHMMToMinutes(ev.endTime) - parseHHMMToMinutes(ev.startTime);
+      if (dur > 0) {
+        actualMinutesByCat[cat.id] = (actualMinutesByCat[cat.id] || 0) + dur;
+        totalActualMins += dur;
+      }
+    });
+
+    planEvents.forEach(function (ev) {
+      var cat = guessCategory(ev);
+      var dur = parseHHMMToMinutes(ev.endTime) - parseHHMMToMinutes(ev.startTime);
+      if (dur > 0) {
+        planMinutesByCat[cat.id] = (planMinutesByCat[cat.id] || 0) + dur;
+        totalPlanMins += dur;
+      }
+    });
+
+    document.getElementById("totalActualHours").textContent = (totalActualMins / 60).toFixed(1) + " 小時";
+
+    // 2. 繪製比例分佈橫條與清單
+    var summaryBar = document.getElementById("analyticsSummaryBar");
+    summaryBar.innerHTML = "";
+    var catList = document.getElementById("analyticsCategoryList");
+    catList.innerHTML = "";
+
+    var sortedCats = CATEGORIES.slice().sort(function (a, b) {
+      return (actualMinutesByCat[b.id] || 0) - (actualMinutesByCat[a.id] || 0);
+    });
+
+    if (totalActualMins === 0) {
+      catList.innerHTML = '<div style="color: var(--text-light); font-size: 13px; text-align: center; padding: 10px;">今日實際執行欄尚無任何行程記錄。</div>';
+    } else {
+      sortedCats.forEach(function (cat) {
+        var mins = actualMinutesByCat[cat.id] || 0;
+        if (mins > 0) {
+          var pct = Math.round((mins / totalActualMins) * 100);
+          var hrs = (mins / 60).toFixed(1);
+
+          // 比例小段條
+          var seg = document.createElement("div");
+          seg.className = "stat-progress-fill";
+          seg.style.width = pct + "%";
+          seg.style.backgroundColor = cat.border;
+          seg.title = cat.name + " (" + pct + "%)";
+          summaryBar.appendChild(seg);
+
+          // 清單行
+          var row = document.createElement("div");
+          row.className = "stat-row";
+          row.innerHTML =
+            '<div style="display:flex; align-items:center; gap:6px;">' +
+            '<span style="font-size:16px;">' + cat.icon + '</span>' +
+            '<strong>' + cat.name + '</strong>' +
+            '</div>' +
+            '<div style="display:flex; align-items:center; gap:8px;">' +
+            '<span style="color:var(--text-muted); font-size:12px;">' + pct + '%</span>' +
+            '<strong style="font-size:13.5px; color:' + cat.border + ';">' + hrs + ' 小時</strong>' +
+            '</div>';
+          catList.appendChild(row);
+        }
+      });
+    }
+
+    // 3. 對比規劃 vs 實際
+    var compareList = document.getElementById("analyticsCompareList");
+    compareList.innerHTML = "";
+    var anyActivity = false;
+
+    sortedCats.forEach(function (cat) {
+      var actM = actualMinutesByCat[cat.id] || 0;
+      var planM = planMinutesByCat[cat.id] || 0;
+      if (actM > 0 || planM > 0) {
+        anyActivity = true;
+        var actH = (actM / 60).toFixed(1);
+        var planH = (planM / 60).toFixed(1);
+        var diff = ((actM - planM) / 60).toFixed(1);
+        var diffText = "";
+        if (diff > 0) diffText = '<span style="color: #D93025; font-size: 11px;">(超出 ' + diff + 'h)</span>';
+        else if (diff < 0) diffText = '<span style="color: #1A73E8; font-size: 11px;">(比預期少 ' + Math.abs(diff) + 'h)</span>';
+        else diffText = '<span style="color: #0F9D58; font-size: 11px;">(符合預期)</span>';
+
+        var cRow = document.createElement("div");
+        cRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; border-bottom: 1px dashed #E0E0E0; padding: 4px 0;";
+        cRow.innerHTML =
+          '<div><span>' + cat.icon + '</span> <strong>' + cat.name + '</strong> ' + diffText + '</div>' +
+          '<div>預計 <strong>' + planH + 'h</strong> ➔ 實際 <strong>' + actH + 'h</strong></div>';
+        compareList.appendChild(cRow);
+      }
+    });
+
+    if (!anyActivity) {
+      compareList.innerHTML = '<div style="color: var(--text-light); font-size: 13px; text-align: center; padding: 8px;">今日無規劃與實際行程對比資料。</div>';
+    }
+
+    document.getElementById("analyticsModal").classList.add("open");
+  }
+
+  document.getElementById("btnShowAnalytics").addEventListener("click", openAnalyticsModal);
+  document.getElementById("btnAnalyticsClose").addEventListener("click", function () {
+    document.getElementById("analyticsModal").classList.remove("open");
+  });
+  document.getElementById("btnAnalyticsDone").addEventListener("click", function () {
+    document.getElementById("analyticsModal").classList.remove("open");
+  });
+
+  /* ===== 19. 應用程式啟動初始化 ===== */
+  populateTimeSelects();
+  initCategorySelector();
+  initColorPalette();
+  loadLocalData();
+  seedDefaultData();
+  updateVersionDisplay();
+  renderTimeline();
+
+  // 若有雲端網址，啟動時自動拉取同步
+  if (currentGasUrl) {
+    pullFromCloud(true);
+  } else {
+    setSyncStatus("", "本地離線儲存 (貼上 GAS 網址開啟同步)");
+  }
+
+  // 每分鐘重新渲染現在時間指示線
+  setInterval(function () {
+    var now = new Date();
+    if (formatDateISO(now) === currentDateStr) {
+      renderTimeline();
+    }
+  }, 60000);
+
+})();
+</script>
+</body>
+</html>
