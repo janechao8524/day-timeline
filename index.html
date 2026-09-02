@@ -940,6 +940,7 @@
       <div class="col-tools">
         <button class="btn btn-sm" id="btnCopyPlanToActual" title="將今日預計行程複製到實際欄">📋 複製預計至實際</button>
         <button class="btn btn-sm" style="background: var(--actual-color); color: #fff; border-color: var(--actual-color);" id="btnAddActual">+ 新增實際</button>
+        <button class="btn btn-sm" id="btnClearTodayActual" title="清空今日實際欄的所有行程" style="color: #D93025; border-color: #F8D7DA;">🗑️ 清空實際</button>
       </div>
     </div>
   </div>
@@ -1436,11 +1437,32 @@
           if (cloudTime > localTime) {
             appData = cloudData;
             if (!appData.unfoldedSet) appData.unfoldedSet = {};
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+
+            // 自動清洗：若 9 月 3 日含有先前誤同步上傳的 9/2 舊行程（如厚道午餐），徹底清空！
+            var needsCleanSync = false;
+            Object.keys(appData.days).forEach(function (dStr) {
+              if (dStr !== "2026-09-02") {
+                var dObj = appData.days[dStr];
+                if (dObj && dObj.actual && dObj.actual.some(function (ev) {
+                  return ev.id === "a_1230_lunch" || ev.title.indexOf("厚道午餐") !== -1 || ev.id === "a_1000_volunteer";
+                })) {
+                  appData.days[dStr] = { plan: [], actual: [] };
+                  needsCleanSync = true;
+                }
+              }
+            });
+
+            if (needsCleanSync) {
+              saveLocalData();
+              pushToCloud(true);
+            } else {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+            }
+
             updateVersionDisplay();
             renderTimeline();
             setSyncStatus("online", "🟢 Google 雲端同步中");
-            if (!silent) showToast("✅ 已成功同步雲端最新版本！(來自 " + (cloudData.lastModifiedDevice || "其他裝置") + ")");
+            if (!silent) showToast("✅ 已成功同步雲端最新版本！");
           } else if (localTime > cloudTime) {
             // 本地比較新，自動推上雲端防覆蓋
             pushToCloud(true);
@@ -2296,6 +2318,20 @@
   });
   document.getElementById("btnAddActual").addEventListener("click", function () {
     openEventModal("actual", null, "09:00");
+  });
+
+  document.getElementById("btnClearTodayActual").addEventListener("click", function () {
+    var curActual = (appData.days[currentDateStr] && appData.days[currentDateStr].actual) || [];
+    if (curActual.length === 0) {
+      alert("今日實際執行欄目前本來就是空的！");
+      return;
+    }
+    if (confirm("確定要清空今日 (" + currentDateStr + ") 實際執行的所有行程嗎？")) {
+      appData.days[currentDateStr].actual = [];
+      saveAndSync();
+      renderTimeline();
+      showToast("🗑️ 已成功清空今日實際欄的所有行程！");
+    }
   });
 
   // 鍵盤快捷鍵 (← 前一天, → 後一天)
