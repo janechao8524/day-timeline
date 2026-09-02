@@ -35,13 +35,20 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     font-family: var(--font-family);
     background: var(--bg-page);
     color: var(--text-main);
     line-height: 1.5;
     font-size: 14px;
-    min-height: 100vh;
+    min-height: 100%;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -763,14 +770,18 @@
 
   /* 響應式佈局適應手機螢幕與 Notion 小視窗 */
   @media (max-width: 768px) {
-    header.app-bar { padding: 8px 10px; }
-    .title-row { gap: 6px; }
-    .date-title { font-size: 16px; }
-    .sync-strip { padding: 8px 10px; flex-direction: column; align-items: stretch; }
-    .sync-actions { width: 100%; justify-content: flex-start; }
+    header.app-bar { padding: 6px 8px; }
+    .nav-row { gap: 6px; justify-content: space-between; }
+    .nav-left { gap: 6px; flex-wrap: wrap; }
+    .nav-right { gap: 4px; flex-wrap: wrap; }
+    .nav-right .btn { height: 28px; padding: 0 6px; font-size: 11.5px; }
+    .user-profile { display: none; } /* Notion小視窗時隱藏頭像，讓緊湊與分析按鈕100%露出來 */
+    .date-title { font-size: 15px; }
+    .sync-strip { padding: 6px 8px; flex-direction: column; align-items: stretch; }
+    .sync-actions { width: 100%; justify-content: flex-start; gap: 4px; }
     .gas-input-wrap { width: 100%; }
     .gas-input { flex: 1; }
-    .timeline-container { padding: 8px 4px 30px; }
+    .timeline-container { padding: 6px 4px 30px; }
     
     .timeline-header-grid, .timeline-body-grid {
       grid-template-columns: 46px 1fr 1fr;
@@ -810,6 +821,7 @@
     </div>
 
     <div class="nav-right">
+      <button class="btn btn-sm" id="btnToggleDensity" title="切換緊湊/標準高度，適合在 Notion 中一覽全天">📐 緊湊檢視</button>
       <button class="btn btn-sm" id="btnShowAnalytics" title="查看時間花費分析統計">📊 時間分析</button>
       <button class="btn btn-sm" id="btnToggleIndicator" title="開關現在時間紅線">🔴 時間線</button>
       <button class="btn btn-sm" id="btnManageFold" title="設定時段收合">⚙️ 時段摺疊</button>
@@ -2292,6 +2304,17 @@
     };
     reader.readAsText(file);
     this.value = "";
+  });
+
+  // 切換緊湊/標準檢視模式 (適合 Notion 內嵌一覽全天)
+  var isCompactMode = false;
+  document.getElementById("btnToggleDensity").addEventListener("click", function () {
+    isCompactMode = !isCompactMode;
+    SLOT_HEIGHT = isCompactMode ? 12 : 20;
+    this.textContent = isCompactMode ? "📐 標準高度" : "📐 緊湊檢視";
+    this.classList.toggle("active", isCompactMode);
+    renderTimeline();
+    showToast(isCompactMode ? "📐 已切換為緊湊模式 (高度縮減，適合 Notion 一覽全天)" : "📐 已切換回標準高度模式");
   });
 
   document.getElementById("btnToggleIndicator").addEventListener("click", function () {
