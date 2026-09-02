@@ -1234,10 +1234,13 @@
   var todayObj = new Date();
   currentDateStr = formatDateISO(todayObj);
 
-  // 預設行程（完整保留與還原使用者所記錄的所有真實行程）
+  // 預設行程初始化邏輯：
+  // 1. 2026-09-02 的歷史記錄只保存在 2026-09-02 當天！
+  // 2. 任何新的一天（包括今天或未來的每一天），預設皆為全新空白，絕不帶入舊行程！
   function seedDefaultData() {
-    if (!appData.days[currentDateStr]) {
-      appData.days[currentDateStr] = {
+    // 1. 昨天的行程固定保存在 2026-09-02
+    if (!appData.days["2026-09-02"]) {
+      appData.days["2026-09-02"] = {
         plan: [
           {
             id: "p_1000_volunteer",
@@ -1321,7 +1324,22 @@
           }
         ]
       };
-      saveLocalData();
+    }
+
+    // 2. 如果今天 (currentDateStr 不是 2026-09-02) 之前被誤填入預設資料，自動清理乾淨！
+    if (currentDateStr !== "2026-09-02" && appData.days[currentDateStr]) {
+      var curDay = appData.days[currentDateStr];
+      var hasDummyVolunteer = (curDay.actual && curDay.actual.some(function (x) { return x.id === "a_1000_volunteer"; })) ||
+                             (curDay.plan && curDay.plan.some(function (x) { return x.id === "p_1000_volunteer"; }));
+      if (hasDummyVolunteer) {
+        appData.days[currentDateStr] = { plan: [], actual: [] };
+        saveLocalData();
+      }
+    }
+
+    // 3. 任何新的一天，若無資料，一律初始化為全新乾淨的空白時間軸！
+    if (!appData.days[currentDateStr]) {
+      appData.days[currentDateStr] = { plan: [], actual: [] };
     }
   }
 
