@@ -1137,16 +1137,18 @@
 
   // 活動圖標與分類清單 (專門用於圖標標記、視覺分類與時間審計統計分析)
   var CATEGORIES = [
-    { id: "volunteer", icon: "🎨", name: "志工藝文", color: "#F08C8C", border: "#E03131", keywords: ["志工", "美術館", "展場", "導覽", "培訓", "藝術", "手作"] },
-    { id: "work",      icon: "💻", name: "程式專案", color: "#4DABF7", border: "#1971C2", keywords: ["程式", "app", "AI", "專案", "開發", "網站", "代碼", "設計"] },
-    { id: "sport",     icon: "🏃", name: "運動健康", color: "#FFA94D", border: "#D9480F", keywords: ["運動", "排舞", "練習", "散步", "健身", "跑步", "跳舞"] },
-    { id: "dining",    icon: "🍱", name: "生活飲食", color: "#69DB7C", border: "#2B8A3E", keywords: ["午餐", "晚餐", "早餐", "聚餐", "吃", "餐廳", "美食", "厚道"] },
-    { id: "errand",    icon: "📮", name: "日常雜務", color: "#FFD43B", border: "#F08C00", keywords: ["郵局", "轉帳", "採買", "修繕", "銀行", "繳費", "購物", "整理"] },
-    { id: "astro",     icon: "🔭", name: "天文星空", color: "#B197FC", border: "#7950F2", keywords: ["天文", "星空", "觀星", "神話", "土星", "天蠍", "人馬", "銀河"] },
-    { id: "plant",     icon: "🌿", name: "自然植物", color: "#38D9A9", border: "#0CA678", keywords: ["植物", "觀察", "生態", "自然", "校園", "筆記"] },
-    { id: "study",     icon: "📖", name: "閱讀學習", color: "#74C0FC", border: "#1864AB", keywords: ["閱讀", "讀書會", "市圖", "課程", "教案", "簡報", "研究"] },
-    { id: "rest",      icon: "💤", name: "休息放鬆", color: "#CED4DA", border: "#868E96", keywords: ["休息", "午休", "睡眠", "放鬆", "小憩"] },
-    { id: "other",     icon: "📌", name: "其他事項", color: "#ADB5BD", border: "#495057", keywords: [] }
+    { id: "volunteer",       icon: "🎨", name: "志工藝文", color: "#F08C8C", border: "#E03131", keywords: ["藝文志工", "美術館", "展場", "導覽", "培訓", "藝術", "手作"] },
+    { id: "astro_volunteer", icon: "🪐", name: "志工天文", color: "#9775FA", border: "#5F3DC4", keywords: ["天文志工", "觀星導覽", "星空解說", "天文館", "觀測指導", "星空導覽", "觀星活動"] },
+    { id: "traffic",         icon: "🚗", name: "交通移動", color: "#3BC9DB", border: "#1098AD", keywords: ["交通", "通勤", "車程", "路程", "開車", "騎車", "搭車", "捷運", "公車", "步行", "前往", "移動", "走"] },
+    { id: "astro",           icon: "🔭", name: "天文科普", color: "#B197FC", border: "#7950F2", keywords: ["天文", "科普", "星空", "觀星", "神話", "土星", "天蠍", "人馬", "銀河", "星座", "天體"] },
+    { id: "plant",           icon: "🌿", name: "自然植物", color: "#38D9A9", border: "#0CA678", keywords: ["植物", "觀察", "生態", "自然", "校園", "筆記"] },
+    { id: "work",            icon: "💻", name: "程式專案", color: "#4DABF7", border: "#1971C2", keywords: ["程式", "app", "AI", "專案", "開發", "網站", "代碼", "設計"] },
+    { id: "sport",           icon: "🏃", name: "運動健康", color: "#FFA94D", border: "#D9480F", keywords: ["運動", "排舞", "練習", "散步", "健身", "跑步", "跳舞"] },
+    { id: "dining",          icon: "🍱", name: "生活飲食", color: "#69DB7C", border: "#2B8A3E", keywords: ["午餐", "晚餐", "早餐", "聚餐", "吃", "餐廳", "美食", "厚道"] },
+    { id: "errand",          icon: "📮", name: "日常雜務", color: "#FFD43B", border: "#F08C00", keywords: ["郵局", "轉帳", "採買", "修繕", "銀行", "繳費", "購物", "整理"] },
+    { id: "study",           icon: "📖", name: "閱讀學習", color: "#74C0FC", border: "#1864AB", keywords: ["閱讀", "讀書會", "市圖", "課程", "教案", "簡報", "研究"] },
+    { id: "rest",            icon: "💤", name: "休息放鬆", color: "#CED4DA", border: "#868E96", keywords: ["休息", "午休", "睡眠", "放鬆", "小憩"] },
+    { id: "other",           icon: "📌", name: "其他事項", color: "#ADB5BD", border: "#495057", keywords: [] }
   ];
 
   function guessCategory(ev) {
